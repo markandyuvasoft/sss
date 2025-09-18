@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Email Verification - Gopratle</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --brand: #ff4e18;
+      --text: #1e1e1e;
+      --muted: #4b5563;
+      --bg: #ffffff;
+      --border: #e5e7eb;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 1.5rem;
+    }
+
+    .email-container {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      max-width: 420px;
+      width: 100%;
+      box-shadow: 0 12px 34px rgba(0, 0, 0, 0.06);
+      overflow: hidden;
+      transition: all 0.3s ease-in-out;
+    }
+
+    header {
+      padding: 1.5rem;
+      /* border-bottom: 1px solid var(--border); */
+      text-align: center;
+      /* background: #fafafa; */
+    }
+
+    .logo-text {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .logo-text img {
+      width: 40px;
+    }
+
+    .logo-text h1 {
+      margin: 0;
+      font-size: 1.5rem;
+      font-weight: 400;
+    }
+
+    .logo-text h1 span {
+      font-weight: 600;
+    }
+
+    .content {
+      padding: 2rem 1.8rem;
+      text-align: center;
+      opacity: 0;
+      transition: opacity 0.4s ease-in-out;
+    }
+
+    .content:not(.hidden) {
+      opacity: 1;
+    }
+
+    .status-icon,
+    .loading-icon {
+      width: 60px;
+      height: 60px;
+      margin: 0 auto 1.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #fff;
+    }
+
+    .status-icon {
+      background: var(--brand);
+    }
+
+    .error-icon {
+      background: #ef4444;
+    }
+
+    .loading-icon {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid var(--brand);
+      animation: spin 1s linear infinite;
+    }
+
+    h2.title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    p.subtitle {
+      font-size: 0.95rem;
+      color: var(--muted);
+      margin-bottom: 1.8rem;
+      line-height: 1.5;
+    }
+
+    a.btn {
+      display: inline-block;
+      padding: 0.65rem 1.5rem;
+      background-color: var(--brand);
+      color: #fff;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 0.95rem;
+      font-weight: 500;
+      transition: background-color 0.2s ease;
+    }
+
+    a.btn:hover {
+      background-color: #e54310;
+    }
+
+    footer {
+      border-top: 1px solid var(--border);
+      background: #fafafa;
+      padding: 1rem;
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    footer a {
+      color: var(--brand);
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    @media (max-width: 480px) {
+      .email-container {
+        margin: 1rem;
+        border-radius: 12px;
+      }
+
+      .content {
+        padding: 1.5rem;
+      }
+
+      header {
+        padding: 1rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="email-container" role="main" aria-label="Email Verification">
+    <header>
+      <div class="logo-text">
+        <img src="https://res.cloudinary.com/de6aivvo3/image/upload/v1748882547/Logo_1_qy4auw.png"
+          alt="Gopratle Logo" />
+        <h1>Go<span>Pratle</span></h1>
+      </div>
+    </header>
+
+    <section id="loading-state" class="content state" aria-live="polite">
+      <div class="loading-icon"></div>
+      <h2 class="title">Verifying Email...</h2>
+      <p class="subtitle">Please wait while we verify your email address.</p>
+    </section>
+
+    <section id="success-state" class="content state hidden">
+      <div class="status-icon">✓</div>
+      <h2 class="title">Email Verified!</h2>
+      <p class="subtitle">Your email has been successfully verified. You can now access your account.</p>
+      <a href="https://gopratle.com/#/" class="btn">Continue to Login</a>
+    </section>
+
+    <section id="error-state" class="content state hidden">
+      <div class="status-icon error-icon">!</div>
+      <h2 class="title">Verification Failed</h2>
+      <p class="subtitle" id="error-message">
+        The verification link is invalid or has expired.
+      </p>
+      <!-- <a href="/api/auth/resend-verification" method="post" class="btn">Resend Verification Email</a> -->
+    </section>
+
+    <!-- <footer>
+      <p>Need help? <a href="/support">Contact Support</a></p>
+    </footer> -->
+  </main>
+
+  <script>
+    (function () {
+      const urlParams = new URLSearchParams(window.location.search);
+      const token = urlParams.get("token");
+      const email = urlParams.get("email");
+
+      const showState = (stateId) => {
+        const states = ["loading-state", "success-state", "error-state"];
+        states.forEach((id) => {
+          const element = document.getElementById(id);
+          if (element) {
+            element.classList.toggle("hidden", id !== stateId);
+          }
+        });
+      };
+
+      const showError = (message) => {
+        const errorElement = document.getElementById("error-message");
+        if (errorElement) {
+          errorElement.textContent = message;
+        }
+        showState("error-state");
+      };
+
+      const verifyEmail = async (attempt = 1) => {
+        try {
+          const response = await fetch(
+            `/api/auth/verify-email-api?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`,
+            {
+              method: "GET",
+              headers: {
+                "Accept": "application/json",
+                "Content-Type": "application/json"
+              },
+            }
+          );
+
+          const data = await response.json();
+
+          if (response.ok && data.success !== false) {
+            showState("success-state");
+          } else {
+            const errorMessage = data.message || data.error || "Email verification failed. Please try again.";
+            showError(errorMessage);
+          }
+        } catch (error) {
+          if (attempt < 3) {
+            setTimeout(() => verifyEmail(attempt + 1), 1000 * attempt);
+          } else {
+            showError("Network error occurred. Please check your connection and try again.");
+          }
+        }
+      };
+
+      if (token && email) {
+        verifyEmail();
+
+        setTimeout(() => {
+          const loading = document.getElementById("loading-state");
+          const success = document.getElementById("success-state");
+          const error = document.getElementById("error-state");
+
+          if (!success.classList.contains("hidden") && !error.classList.contains("hidden")) {
+            showError("Verification is taking longer than expected. Please try again.");
+          }
+        }, 10000);
+      } else {
+        showError("Missing verification parameters. Please use the link from your email.");
+      }
+    })();
+  </script>
+</body>
+</html>
