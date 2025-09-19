@@ -204,12 +204,15 @@ class PaymentService {
     try {
       console.log('=== PROCESSING WEBHOOK ===');
       console.log('Webhook data:', JSON.stringify(webhookData, null, 2));
+      console.log('Webhook data type:', typeof webhookData);
+      console.log('Webhook data keys:', Object.keys(webhookData || {}));
       
       // Handle different webhook data structures
       let orderId, orderAmount, referenceId, txStatus, txMsg, txTime;
 
       // Check if it's the new Cashfree webhook format (PAYMENT_SUCCESS_WEBHOOK)
       if (webhookData.data && webhookData.data.order && webhookData.data.payment) {
+        console.log('Processing new Cashfree webhook format');
         // Extract from order_tags for link_id (our custom order ID)
         const orderTags = webhookData.data.order.order_tags || {};
         orderId = orderTags.link_id || webhookData.data.order.order_id;
@@ -221,6 +224,7 @@ class PaymentService {
       }
       // Check if it's Orders API webhook
       else if (webhookData.orderId) {
+        console.log('Processing Orders API webhook format');
         orderId = webhookData.orderId;
         orderAmount = webhookData.orderAmount;
         referenceId = webhookData.referenceId;
@@ -230,6 +234,7 @@ class PaymentService {
       }
       // Check if it's Payment Links API webhook
       else if (webhookData.link_id) {
+        console.log('Processing Payment Links API webhook format');
         orderId = webhookData.link_id;
         orderAmount = webhookData.link_amount;
         referenceId = webhookData.payment_id;
@@ -239,12 +244,23 @@ class PaymentService {
       }
       // Check if it's a different format
       else if (webhookData.data) {
+        console.log('Processing nested data webhook format');
         orderId = webhookData.data.orderId || webhookData.data.link_id;
         orderAmount = webhookData.data.orderAmount || webhookData.data.link_amount;
         referenceId = webhookData.data.referenceId || webhookData.data.payment_id;
         txStatus = webhookData.data.txStatus || webhookData.data.payment_status;
         txMsg = webhookData.data.txMsg || webhookData.data.payment_message;
         txTime = webhookData.data.txTime || webhookData.data.payment_time;
+      }
+      // Check if it's a direct webhook format (no nested data)
+      else {
+        console.log('Processing direct webhook format');
+        orderId = webhookData.order_id || webhookData.link_id || webhookData.orderId;
+        orderAmount = webhookData.order_amount || webhookData.link_amount || webhookData.orderAmount;
+        referenceId = webhookData.cf_payment_id || webhookData.payment_id || webhookData.referenceId;
+        txStatus = webhookData.payment_status || webhookData.txStatus;
+        txMsg = webhookData.payment_message || webhookData.txMsg;
+        txTime = webhookData.payment_time || webhookData.txTime;
       }
 
       console.log('Extracted webhook data:', {
@@ -258,6 +274,7 @@ class PaymentService {
 
       if (!orderId) {
         console.error('No order ID found in webhook data');
+        console.error('Available keys in webhook data:', Object.keys(webhookData || {}));
         throw new Error('No order ID found in webhook data');
       }
 

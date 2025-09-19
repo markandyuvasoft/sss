@@ -217,8 +217,11 @@ exports.getUserPayments = asyncHandler(async (req, res) => {
 exports.testWebhook = asyncHandler(async (req, res) => {
   console.log('=== WEBHOOK TEST ENDPOINT HIT ===');
   console.log('Method:', req.method);
-  console.log('Headers:', req.headers);
-  console.log('Body:', req.body);
+  console.log('URL:', req.url);
+  console.log('Headers:', JSON.stringify(req.headers, null, 2));
+  console.log('Body:', JSON.stringify(req.body, null, 2));
+  console.log('Body type:', typeof req.body);
+  console.log('Body keys:', Object.keys(req.body || {}));
   console.log('==================================');
   
   res.status(200).json({
@@ -226,8 +229,47 @@ exports.testWebhook = asyncHandler(async (req, res) => {
     message: 'Webhook test endpoint is working',
     timestamp: new Date().toISOString(),
     method: req.method,
-    received: true
+    received: true,
+    receivedData: {
+      hasData: !!req.body,
+      dataKeys: Object.keys(req.body || {}),
+      dataType: typeof req.body
+    }
   });
+});
+
+// Test webhook processing with sample data
+exports.testWebhookProcessing = asyncHandler(async (req, res) => {
+  console.log('=== TESTING WEBHOOK PROCESSING ===');
+  
+  // Sample webhook data for testing
+  const sampleWebhookData = {
+    link_id: 'D96pobnjsg20', // Use the order ID from your logs
+    link_amount: 5556,
+    payment_id: 'TEST_PAYMENT_123',
+    payment_status: 'SUCCESS',
+    payment_message: 'Payment successful',
+    payment_time: new Date().toISOString()
+  };
+  
+  try {
+    console.log('Testing with sample data:', JSON.stringify(sampleWebhookData, null, 2));
+    const result = await paymentService.processWebhook(sampleWebhookData);
+    console.log('Test processing result:', JSON.stringify(result, null, 2));
+    
+    res.status(200).json({
+      success: true,
+      message: 'Webhook processing test completed',
+      result: result
+    });
+  } catch (error) {
+    console.error('Test processing error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Webhook processing test failed',
+      error: error.message
+    });
+  }
 });
 
 
@@ -235,8 +277,11 @@ exports.testWebhook = asyncHandler(async (req, res) => {
 exports.processWebhook = asyncHandler(async (req, res) => {
   console.log('=== WEBHOOK RECEIVED ===');
   console.log('Method:', req.method);
-  console.log('Headers:', req.headers);
+  console.log('URL:', req.url);
+  console.log('Headers:', JSON.stringify(req.headers, null, 2));
   console.log('Body:', JSON.stringify(req.body, null, 2));
+  console.log('Body type:', typeof req.body);
+  console.log('Body keys:', Object.keys(req.body || {}));
   console.log('========================');
 
   try {
@@ -246,24 +291,33 @@ exports.processWebhook = asyncHandler(async (req, res) => {
     res.status(200).json({
       success: true,
       message: 'Webhook received successfully',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      receivedData: {
+        hasData: !!webhookData,
+        dataKeys: Object.keys(webhookData || {}),
+        dataType: typeof webhookData
+      }
     });
 
     // Process webhook asynchronously
     try {
+      console.log('Starting webhook processing...');
       const result = await paymentService.processWebhook(webhookData);
-      console.log('Webhook processed successfully:', result);
+      console.log('Webhook processed successfully:', JSON.stringify(result, null, 2));
     } catch (processError) {
       console.error('Error processing webhook data:', processError);
+      console.error('Error stack:', processError.stack);
     }
     
   } catch (error) {
     console.error('Error in webhook endpoint:', error);
+    console.error('Error stack:', error.stack);
     // Still send 200 OK to Cashfree to avoid retries
     res.status(200).json({
       success: false,
       message: 'Webhook received but processing failed',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      error: error.message
     });
   }
 });

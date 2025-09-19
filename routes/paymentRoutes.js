@@ -39,6 +39,10 @@ router.get('/user/history', protect(['customer', 'event-manager', 'event-agency'
 // GET /api/payments/webhook-test
 router.get('/webhook-test', paymentController.testWebhook);
 
+// Test webhook processing with sample data
+// GET /api/payments/test-webhook-processing
+router.get('/test-webhook-processing', paymentController.testWebhookProcessing);
+
 
 // Process webhook from Cashfree (no authentication required)
 // POST /api/payments/webhook
