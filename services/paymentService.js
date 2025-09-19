@@ -287,9 +287,31 @@ class PaymentService {
           'metadata.customOrderId': orderId
         });
       }
+      
+      // If still not found, try to find by the actual Cashfree order ID from the webhook
+      if (!payment && webhookData.data && webhookData.data.order) {
+        const actualOrderId = webhookData.data.order.order_id;
+        if (actualOrderId) {
+          // Extract the actual order ID from the Cashfree order_id (like CFPay_w96pph4pig20_7244q0ish)
+          const orderIdParts = actualOrderId.split('_');
+          if (orderIdParts.length >= 2) {
+            const extractedOrderId = orderIdParts[1]; // This should be w96pph4pig20
+            console.log('Trying to find payment by extracted order ID:', extractedOrderId);
+            payment = await Payment.findOne({ orderId: extractedOrderId });
+          }
+        }
+      }
 
       if (!payment) {
         console.error('Payment not found for orderId:', orderId);
+        console.error('Searched for orderId:', orderId);
+        console.error('Webhook data order_id:', webhookData.data?.order?.order_id);
+        console.error('Available payments in database:');
+        const allPayments = await Payment.find({}, 'orderId metadata.customOrderId');
+        console.error('All payments:', allPayments.map(p => ({
+          orderId: p.orderId,
+          customOrderId: p.metadata?.get('customOrderId')
+        })));
         throw new Error('Payment not found');
       }
 
@@ -312,6 +334,14 @@ class PaymentService {
 
       // Update payment status
       const oldStatus = payment.paymentStatus;
+      console.log('Updating payment status:', {
+        orderId: payment.orderId,
+        oldStatus: oldStatus,
+        newStatus: newStatus,
+        txStatus: txStatus,
+        referenceId: referenceId
+      });
+      
       payment.paymentStatus = newStatus;
       payment.cashfreePaymentId = referenceId;
       payment.updatedAt = new Date();
@@ -333,7 +363,19 @@ class PaymentService {
         payment.metadata.set('transactionMessage', txMsg);
       }
 
-      await payment.save();
+      console.log('Saving payment with status:', payment.paymentStatus);
+      
+      try {
+        await payment.save();
+        console.log('Payment saved successfully');
+        
+        // Verify the save by fetching the payment again
+        const savedPayment = await Payment.findOne({ orderId: payment.orderId });
+        console.log('Verification - Payment status after save:', savedPayment.paymentStatus);
+      } catch (saveError) {
+        console.error('Error saving payment:', saveError);
+        throw saveError;
+      }
 
       console.log('Payment updated successfully:', {
         orderId: payment.orderId,
@@ -447,6 +489,44 @@ class PaymentService {
         console.error('Error response data:', JSON.stringify(error.response.data));
       }
       throw new Error(error.response?.data?.message || error.message || 'Failed to check payment status');
+    }
+  }
+
+  // Manual payment status update (for debugging)
+  async manualUpdatePaymentStatus(orderId, status) {
+    try {
+      console.log('=== MANUAL PAYMENT STATUS UPDATE ===');
+      console.log('Order ID:', orderId);
+      console.log('New Status:', status);
+      
+      const payment = await Payment.findOne({ orderId });
+      if (!payment) {
+        throw new Error('Payment not found');
+      }
+      
+      console.log('Current payment status:', payment.paymentStatus);
+      
+      payment.paymentStatus = status;
+      payment.updatedAt = new Date();
+      
+      await payment.save();
+      
+      console.log('Payment status updated successfully');
+      
+      // Verify the update
+      const updatedPayment = await Payment.findOne({ orderId });
+      console.log('Verification - Updated payment status:', updatedPayment.paymentStatus);
+      
+      return {
+        success: true,
+        orderId: payment.orderId,
+        oldStatus: payment.paymentStatus,
+        newStatus: status,
+        updatedAt: payment.updatedAt
+      };
+    } catch (error) {
+      console.error('Error in manual update:', error);
+      throw error;
     }
   }
 

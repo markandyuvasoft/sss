@@ -272,6 +272,35 @@ exports.testWebhookProcessing = asyncHandler(async (req, res) => {
   }
 });
 
+// Manual payment status update (for debugging)
+exports.manualUpdatePaymentStatus = asyncHandler(async (req, res) => {
+  const { orderId, status } = req.body;
+  
+  if (!orderId || !status) {
+    return res.status(400).json({
+      success: false,
+      message: 'Order ID and status are required'
+    });
+  }
+  
+  try {
+    const result = await paymentService.manualUpdatePaymentStatus(orderId, status);
+    
+    res.status(200).json({
+      success: true,
+      message: 'Payment status updated successfully',
+      data: result
+    });
+  } catch (error) {
+    console.error('Error updating payment status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update payment status',
+      error: error.message
+    });
+  }
+});
+
 
 // Process webhook from Cashfree
 exports.processWebhook = asyncHandler(async (req, res) => {

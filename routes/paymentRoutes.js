@@ -43,6 +43,10 @@ router.get('/webhook-test', paymentController.testWebhook);
 // GET /api/payments/test-webhook-processing
 router.get('/test-webhook-processing', paymentController.testWebhookProcessing);
 
+// Manual payment status update (for debugging)
+// POST /api/payments/manual-update-status
+router.post('/manual-update-status', paymentController.manualUpdatePaymentStatus);
+
 
 // Process webhook from Cashfree (no authentication required)
 // POST /api/payments/webhook
