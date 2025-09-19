@@ -208,8 +208,19 @@ class PaymentService {
       // Handle different webhook data structures
       let orderId, orderAmount, referenceId, txStatus, txMsg, txTime;
 
+      // Check if it's the new Cashfree webhook format (PAYMENT_SUCCESS_WEBHOOK)
+      if (webhookData.data && webhookData.data.order && webhookData.data.payment) {
+        // Extract from order_tags for link_id (our custom order ID)
+        const orderTags = webhookData.data.order.order_tags || {};
+        orderId = orderTags.link_id || webhookData.data.order.order_id;
+        orderAmount = webhookData.data.order.order_amount;
+        referenceId = webhookData.data.payment.cf_payment_id;
+        txStatus = webhookData.data.payment.payment_status;
+        txMsg = webhookData.data.payment.payment_message;
+        txTime = webhookData.data.payment.payment_time;
+      }
       // Check if it's Orders API webhook
-      if (webhookData.orderId) {
+      else if (webhookData.orderId) {
         orderId = webhookData.orderId;
         orderAmount = webhookData.orderAmount;
         referenceId = webhookData.referenceId;
@@ -339,7 +350,7 @@ class PaymentService {
     const expectedSignature = crypto
       .createHmac('sha256', secret)
       .update(JSON.stringify(payload))
-      .digest('hex');
+      .digest('base64');
 
     return crypto.timingSafeEqual(
       Buffer.from(signature, 'hex'),
