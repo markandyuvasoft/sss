@@ -247,8 +247,8 @@ class PaymentService {
         console.log('Processing nested data webhook format');
         orderId = webhookData.data.orderId || webhookData.data.link_id;
         orderAmount = webhookData.data.orderAmount || webhookData.data.link_amount;
-        referenceId = webhookData.data.referenceId || webhookData.data.payment_id;
-        txStatus = webhookData.data.txStatus || webhookData.data.payment_status;
+        referenceId = webhookData.data.referenceId || webhookData.data.payment_id || webhookData.data.order?.transaction_id;
+        txStatus = webhookData.data.txStatus || webhookData.data.payment_status || webhookData.data.order?.transaction_status;
         txMsg = webhookData.data.txMsg || webhookData.data.payment_message;
         txTime = webhookData.data.txTime || webhookData.data.payment_time;
       }
@@ -324,9 +324,18 @@ class PaymentService {
 
       // Determine new status based on webhook data
       let newStatus;
-      if (txStatus === 'SUCCESS' || txStatus === 'PAID') {
+      
+      // Check both txStatus and link_status from webhook data
+      const linkStatus = webhookData.data?.link_status;
+      console.log('Status check:', {
+        txStatus: txStatus,
+        linkStatus: linkStatus,
+        webhookType: webhookData.type
+      });
+      
+      if (txStatus === 'SUCCESS' || txStatus === 'PAID' || linkStatus === 'PAID') {
         newStatus = 'SUCCESS';
-      } else if (txStatus === 'FAILED' || txStatus === 'CANCELLED') {
+      } else if (txStatus === 'FAILED' || txStatus === 'CANCELLED' || linkStatus === 'FAILED') {
         newStatus = 'FAILED';
       } else {
         newStatus = 'PENDING';
