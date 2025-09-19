@@ -7,9 +7,25 @@ const protect = require('../middlewares/authMiddleware');
 // POST /api/payments/create-link
 router.post('/create-link', protect(['customer', 'event-manager', 'event-agency', 'independent']), paymentController.createPaymentLink);
 
+// Create direct payment order (without service layer)
+// POST /api/payments/create-direct
+router.post('/create-direct', protect(['customer', 'event-manager', 'event-agency', 'independent']), paymentController.createDirectPayment);
+
 // Get payment details by order ID
 // GET /api/payments/:orderId
 router.get('/:orderId', protect(['customer', 'event-manager', 'event-agency', 'independent']), paymentController.getPaymentDetails);
+
+// Get payment status by order ID
+// GET /api/payments/status/:orderId
+router.get('/status/:orderId', protect(['customer', 'event-manager', 'event-agency', 'independent']), paymentController.getPaymentStatus);
+
+// Check payment status from Cashfree and update database
+// GET /api/payments/check/:orderId
+router.get('/check/:orderId', protect(['customer', 'event-manager', 'event-agency', 'independent']), paymentController.checkAndUpdatePaymentStatus);
+
+// Manually update payment status (for testing)
+// PUT /api/payments/status/:orderId
+router.put('/status/:orderId', protect(['customer', 'event-manager', 'event-agency', 'independent']), paymentController.updatePaymentStatus);
 
 // Check payment status from Cashfree and update database
 // GET /api/payments/:orderId/check-status
@@ -22,6 +38,7 @@ router.get('/user/history', protect(['customer', 'event-manager', 'event-agency'
 // Test webhook endpoint (for Cashfree testing)
 // GET /api/payments/webhook-test
 router.get('/webhook-test', paymentController.testWebhook);
+
 
 // Process webhook from Cashfree (no authentication required)
 // POST /api/payments/webhook

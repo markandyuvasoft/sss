@@ -99,6 +99,11 @@ class PaymentService {
       const urlParts = linkUrl.split('/');
       const actualOrderId = urlParts[urlParts.length - 1]; // This should be like 'x96lbq5d58ag'
       
+      console.log('=== CASHFREE ORDER ID DEBUG ===');
+      console.log('link_url:', linkUrl);
+      console.log('extracted_order_id:', actualOrderId);
+      console.log('================================');
+      
       console.log('Cashfree response data:', {
         cf_link_id: cashfreePaymentLink.data.cf_link_id,
         link_url: cashfreePaymentLink.data.link_url,
@@ -106,6 +111,12 @@ class PaymentService {
         extracted_order_id: actualOrderId,
         all_fields: Object.keys(cashfreePaymentLink.data)
       });
+      
+      console.log('=== ORDER ID COMPARISON ===');
+      console.log('Custom Order ID (our generated):', orderId);
+      console.log('Cashfree Order ID (extracted):', actualOrderId);
+      console.log('Will use as primary orderId:', actualOrderId);
+      console.log('==========================');
       
       const payment = new Payment({
         orderId: actualOrderId, // Use extracted order ID from URL (like 'x96lbq5d58ag')
@@ -129,7 +140,7 @@ class PaymentService {
 
       return {
         success: true,
-        orderId: actualOrderId, // Return extracted order ID (like 'x96lbq5d58ag')
+        orderId: actualOrderId, // Return Cashfree's actual order ID (same as createDirectPayment)
         paymentLink: cashfreePaymentLink.data.link_url,
         amount,
         customOrderId: orderId, // Our custom order ID for reference
@@ -194,16 +205,38 @@ class PaymentService {
       console.log('=== PROCESSING WEBHOOK ===');
       console.log('Webhook data:', JSON.stringify(webhookData, null, 2));
       
-      // For payment links, the webhook data structure might be different
-      // Let's handle both order and payment link webhooks
-      const orderId = webhookData.orderId || webhookData.link_id;
-      const orderAmount = webhookData.orderAmount || webhookData.link_amount;
-      const referenceId = webhookData.referenceId || webhookData.payment_id;
-      const txStatus = webhookData.txStatus || webhookData.payment_status;
-      const txMsg = webhookData.txMsg || webhookData.payment_message;
-      const txTime = webhookData.txTime || webhookData.payment_time;
+      // Handle different webhook data structures
+      let orderId, orderAmount, referenceId, txStatus, txMsg, txTime;
 
-      console.log('Extracted data:', {
+      // Check if it's Orders API webhook
+      if (webhookData.orderId) {
+        orderId = webhookData.orderId;
+        orderAmount = webhookData.orderAmount;
+        referenceId = webhookData.referenceId;
+        txStatus = webhookData.txStatus;
+        txMsg = webhookData.txMsg;
+        txTime = webhookData.txTime;
+      }
+      // Check if it's Payment Links API webhook
+      else if (webhookData.link_id) {
+        orderId = webhookData.link_id;
+        orderAmount = webhookData.link_amount;
+        referenceId = webhookData.payment_id;
+        txStatus = webhookData.payment_status;
+        txMsg = webhookData.payment_message;
+        txTime = webhookData.payment_time;
+      }
+      // Check if it's a different format
+      else if (webhookData.data) {
+        orderId = webhookData.data.orderId || webhookData.data.link_id;
+        orderAmount = webhookData.data.orderAmount || webhookData.data.link_amount;
+        referenceId = webhookData.data.referenceId || webhookData.data.payment_id;
+        txStatus = webhookData.data.txStatus || webhookData.data.payment_status;
+        txMsg = webhookData.data.txMsg || webhookData.data.payment_message;
+        txTime = webhookData.data.txTime || webhookData.data.payment_time;
+      }
+
+      console.log('Extracted webhook data:', {
         orderId,
         orderAmount,
         referenceId,
@@ -212,14 +245,21 @@ class PaymentService {
         txTime
       });
 
-      // Verify webhook signature (implement signature verification)
-      // const signature = req.headers['x-webhook-signature'];
-      // if (!this.verifyWebhookSignature(webhookData, signature)) {
-      //   throw new Error('Invalid webhook signature');
-      // }
+      if (!orderId) {
+        console.error('No order ID found in webhook data');
+        throw new Error('No order ID found in webhook data');
+      }
 
-      // Find payment record using orderId (which is now Cashfree's actual order ID)
-      const payment = await Payment.findOne({ orderId });
+      // Find payment record - try both orderId and customOrderId
+      let payment = await Payment.findOne({ orderId });
+      
+      // If not found by orderId, try to find by customOrderId in metadata
+      if (!payment) {
+        payment = await Payment.findOne({
+          'metadata.customOrderId': orderId
+        });
+      }
+
       if (!payment) {
         console.error('Payment not found for orderId:', orderId);
         throw new Error('Payment not found');
@@ -227,21 +267,41 @@ class PaymentService {
 
       console.log('Found payment:', {
         orderId: payment.orderId,
-        paymentStatus: payment.paymentStatus,
+        customOrderId: payment.metadata?.get('customOrderId'),
+        currentStatus: payment.paymentStatus,
         amount: payment.amount
       });
 
+      // Determine new status based on webhook data
+      let newStatus;
+      if (txStatus === 'SUCCESS' || txStatus === 'PAID') {
+        newStatus = 'SUCCESS';
+      } else if (txStatus === 'FAILED' || txStatus === 'CANCELLED') {
+        newStatus = 'FAILED';
+      } else {
+        newStatus = 'PENDING';
+      }
+
       // Update payment status
-      payment.paymentStatus = txStatus === 'SUCCESS' ? 'SUCCESS' : 'FAILED';
+      const oldStatus = payment.paymentStatus;
+      payment.paymentStatus = newStatus;
       payment.cashfreePaymentId = referenceId;
       payment.updatedAt = new Date();
 
-      if (txStatus === 'SUCCESS') {
-        // Initialize metadata if it doesn't exist
-        if (!payment.metadata) {
-          payment.metadata = new Map();
-        }
+      // Initialize metadata if it doesn't exist
+      if (!payment.metadata) {
+        payment.metadata = new Map();
+      }
+
+      // Add webhook data to metadata
+      payment.metadata.set('webhookReceived', 'true');
+      payment.metadata.set('webhookTime', new Date().toISOString());
+      payment.metadata.set('webhookStatus', txStatus);
+      
+      if (txTime) {
         payment.metadata.set('transactionTime', txTime);
+      }
+      if (txMsg) {
         payment.metadata.set('transactionMessage', txMsg);
       }
 
@@ -249,7 +309,9 @@ class PaymentService {
 
       console.log('Payment updated successfully:', {
         orderId: payment.orderId,
-        paymentStatus: payment.paymentStatus,
+        customOrderId: payment.metadata?.get('customOrderId'),
+        oldStatus: oldStatus,
+        newStatus: payment.paymentStatus,
         cashfreePaymentId: payment.cashfreePaymentId
       });
 
@@ -257,6 +319,8 @@ class PaymentService {
         success: true,
         paymentStatus: payment.paymentStatus,
         orderId: payment.orderId,
+        customOrderId: payment.metadata?.get('customOrderId'),
+        updated: oldStatus !== newStatus,
       };
     } catch (error) {
       console.error('Error processing webhook:', error);
