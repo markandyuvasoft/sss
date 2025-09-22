@@ -41,6 +41,7 @@ exports.createPackage = async (req, res) => {
         eventType,
         description,
         budget,
+        startingFromPrice,
         servicesIncluded,
         availableCities,
         minPax,
@@ -56,6 +57,7 @@ exports.createPackage = async (req, res) => {
             description,
             eventType,
             budget,
+            startingFromPrice,
             servicesIncluded,
             availableCities,
             packageImages,
@@ -129,7 +131,7 @@ exports.getPackageDetails = async(req, res) =>{
 // Update package (event manager can modify their package)
 exports.updatePackage = async (req, res) =>{
     const { packageId } = req.params
-    const {title, description, budget, servicesIncluded, status, minPax, maxPax, venues} = req.body
+    const {title, description, budget, startingFromPrice, servicesIncluded, status, minPax, maxPax, venues} = req.body
 
     try{
         const existingPackage = await Package.findById(packageId)
@@ -147,6 +149,7 @@ exports.updatePackage = async (req, res) =>{
         existingPackage.title = title || existingPackage.title;
         existingPackage.description = description || existingPackage.description;
         existingPackage.budget = budget || existingPackage.budget;
+        existingPackage.startingFromPrice = startingFromPrice !== undefined ? startingFromPrice : existingPackage.startingFromPrice;
         existingPackage.servicesIncluded = servicesIncluded || existingPackage.servicesIncluded;
         existingPackage.minPax = minPax || existingPackage.minPax;
         existingPackage.maxPax = maxPax || existingPackage.maxPax;

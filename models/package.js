@@ -93,10 +93,14 @@ const packageSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
-    budget: {
-        type: Number,
-        required: true,
-    },
+     budget: {
+         type: Number,
+         required: true,
+     },
+     startingFromPrice: {
+         type: Number,
+         required: false,
+     },
     servicesIncluded: [{
         type: String,
         required: true,
