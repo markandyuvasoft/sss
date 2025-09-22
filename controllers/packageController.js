@@ -7,6 +7,9 @@ exports.createPackage = async(req, res) => {
     const { title, eventType, description, budget, location,servicesIncluded, availableCities} = req.body
 
     try{
+        // Extract packageImages URLs from uploaded files
+        const packageImages = req.files ? req.files.map(file => file.path) : [];
+
         const newPackage = new Package({
             title,
             description,
@@ -19,6 +22,7 @@ exports.createPackage = async(req, res) => {
                 country: location.country || 'India',
             },
             availableCities,
+            packageImages,
             managerId:req.user.id // Assuming the user is an event manager or event agency
         })
 

@@ -43,6 +43,10 @@ const packageSchema = new mongoose.Schema({
         },
     },
     availableCities: { type: [String], required: true }, // Add this field
+    packageImages: [{
+        type: String, // Cloudinary URL
+        required: false
+    }],
     managerId:{
         type: mongoose.Schema.Types.ObjectId,
         ref:'User',
