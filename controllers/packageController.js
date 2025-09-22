@@ -2,36 +2,77 @@ const Package = require('../models/package');
 const { sendNotification } = require('../services/notificationService')
 
 // Create a new package
-exports.createPackage = async(req, res) => {
-    console.log(req.body);
-    const { title, eventType, description, budget, location,servicesIncluded, availableCities} = req.body
+// exports.createPackage = async(req, res) => {
+//     console.log(req.body);
+//     const { title, eventType, description, budget, location,servicesIncluded, availableCities} = req.body
 
-    try{
+//     try{
+//         // Extract packageImages URLs from uploaded files
+//         const packageImages = req.files ? req.files.map(file => file.path) : [];
+
+//         const newPackage = new Package({
+//             title,
+//             description,
+//             eventType,
+//             budget,
+//             servicesIncluded,
+//             location: {
+//                 city: location.city,
+//                 state: location.state,
+//                 country: location.country || 'India',
+//             },
+//             availableCities,
+//             packageImages,
+//             managerId:req.user.id // Assuming the user is an event manager or event agency
+//         })
+
+//         await newPackage.save()
+//         res.status(201).json({message:'Package created successfully', pakage:newPackage})
+//     }catch(error){
+//         res.status(500).json({message:'Failed to create package', error:error.message})
+//     }
+// }
+
+
+exports.createPackage = async (req, res) => {
+    console.log(req.body);
+    const {
+        title,
+        eventType,
+        description,
+        budget,
+        servicesIncluded,
+        availableCities,
+        minPax,
+        maxPax,
+        venues,
+        status
+    } = req.body;
+    try {
         // Extract packageImages URLs from uploaded files
         const packageImages = req.files ? req.files.map(file => file.path) : [];
-
         const newPackage = new Package({
             title,
             description,
             eventType,
             budget,
             servicesIncluded,
-            location: {
-                city: location.city,
-                state: location.state,
-                country: location.country || 'India',
-            },
             availableCities,
             packageImages,
-            managerId:req.user.id // Assuming the user is an event manager or event agency
-        })
-
-        await newPackage.save()
-        res.status(201).json({message:'Package created successfully', pakage:newPackage})
-    }catch(error){
-        res.status(500).json({message:'Failed to create package', error:error.message})
+            minPax,
+            maxPax,
+            venues,
+            status: status || "active",
+            managerId: req.user.id // Assuming the user is an event manager or event agency
+        });
+        await newPackage.save();
+        res.status(201).json({ message: 'Package created successfully', package: newPackage });
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to create package', error: error.message });
     }
-}
+};
+
+
 
 // Get packages for a specific manager
 exports.getManagerPackages = async (req, res) => {
@@ -88,7 +129,7 @@ exports.getPackageDetails = async(req, res) =>{
 // Update package (event manager can modify their package)
 exports.updatePackage = async (req, res) =>{
     const { packageId } = req.params
-    const {title, description, budget, servicesIncluded, status, location} = req.body
+    const {title, description, budget, servicesIncluded, status, minPax, maxPax, venues} = req.body
 
     try{
         const existingPackage = await Package.findById(packageId)
@@ -97,11 +138,19 @@ exports.updatePackage = async (req, res) =>{
             return res.status(403).json({messsage:'Not Authorized to modify this package'})
         }
 
+        // Handle packageImages update if new images are uploaded
+        if (req.files && req.files.length > 0) {
+            const newPackageImages = req.files.map(file => file.path);
+            existingPackage.packageImages = [...existingPackage.packageImages, ...newPackageImages];
+        }
+
         existingPackage.title = title || existingPackage.title;
         existingPackage.description = description || existingPackage.description;
         existingPackage.budget = budget || existingPackage.budget;
         existingPackage.servicesIncluded = servicesIncluded || existingPackage.servicesIncluded;
-        existingPackage.location = location || existingPackage.location;
+        existingPackage.minPax = minPax || existingPackage.minPax;
+        existingPackage.maxPax = maxPax || existingPackage.maxPax;
+        existingPackage.venues = venues || existingPackage.venues;
         existingPackage.status = status || existingPackage.status;
     
         await existingPackage.save();
